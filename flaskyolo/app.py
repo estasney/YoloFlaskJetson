@@ -8,6 +8,7 @@ import os
 
 app = Flask(__name__)
 model = SlimModelRunner(weights=os.path.join(app.root_path, "model/model.pt"), device='cuda')
+image_cache = {}
 
 
 def draw_predict(img, pred):
@@ -27,6 +28,21 @@ def draw_predict(img, pred):
     return contents
 
 
+@app.route('/current/<channel>', methods=['GET'])
+def imgdraw_channel(channel):
+    img_data = image_cache.get(channel)
+    if not img_data:
+        return 404
+    img = img_data['img']
+    pred = {k: v for k, v in img_data.items() if k != 'img'}
+
+    drawn = draw_predict(img, pred)
+    img_b64 = base64.b64encode(img_data)
+    img_b64 = img_b64.decode('utf-8')
+
+    return render_template("result.html", img=img_b64)
+
+
 @app.route('/')
 def hello_world():
     return render_template("upload.html")
@@ -34,15 +50,21 @@ def hello_world():
 
 @app.route('/api', methods=['POST'])
 def api_predict():
-    imgs = []
+    img_tasks = []
 
-    for img_file in request.files.values():
-        imgs.append(np.array(Image.open(img_file)))
+    for img_name, img_file in request.files.items():
+        img_arr = np.array(Image.open(img_file))
+        img_tasks.append((img_name, img_arr))
 
-    pred = model.detect(imgs)
-    pred = [{'img_id': img_id, **p} for img_id, p in zip(request.files.keys(), pred)]
+    predictions = model.detect([img for img_name, img in img_tasks])
 
-    return jsonify(pred), 200
+    data_response = []
+
+    for (img_name, img_arr), img_pred in zip(img_tasks, predictions):
+        data_response.append({'img_id': img_name, **img_pred})
+        image_cache[img_name] = {'img': img_arr.astype(np.uint8), **img_pred}
+
+    return jsonify(data_response), 200
 
 
 @app.route('/imgdraw', methods=['POST'])
