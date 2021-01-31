@@ -3,11 +3,11 @@ from yolov5.models.slim import SlimModelRunner
 from PIL import Image, ImageDraw
 import numpy as np
 import base64
-from PIL import Image
 from io import BytesIO
+import os
 
 app = Flask(__name__)
-model = SlimModelRunner(weights="model/best.pt", device='cuda')
+model = SlimModelRunner(weights=os.path.join(app.root_path, "model/best.pt"), device='cuda')
 
 
 def draw_predict(img, pred):
@@ -36,10 +36,11 @@ def hello_world():
 def api_predict():
     imgs = []
 
-    for k, v in request.files.items():
-        imgs.append(np.array(Image.open(v)))
+    for img_file in request.files.values():
+        imgs.append(np.array(Image.open(img_file)))
 
     pred = model.detect(imgs)
+    pred = [{'img_id': img_id, **p} for img_id, p in zip(request.files.keys(), pred)]
 
     return jsonify(pred), 200
 
