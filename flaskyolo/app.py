@@ -7,7 +7,7 @@ from io import BytesIO
 import os
 
 app = Flask(__name__)
-model = SlimModelRunner(weights=os.path.join(app.root_path, "model/model.pt"), device='cpu')
+model = SlimModelRunner(weights=os.path.join(app.root_path, "model/model.pt"), device='cuda')
 image_cache = {}
 
 
@@ -32,7 +32,7 @@ def draw_predict(img, pred):
 def imgdraw_channel(channel):
     img_data = image_cache.get(channel)
     if not img_data:
-        return 404
+        return jsonify({"message": "error"}), 404
     img = img_data['img']
     pred = {k: v for k, v in img_data.items() if k != 'img'}
 
