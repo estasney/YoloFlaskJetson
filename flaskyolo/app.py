@@ -7,7 +7,7 @@ from io import BytesIO
 import os
 
 app = Flask(__name__)
-model = SlimModelRunner(weights=os.path.join(app.root_path, "model/model.pt"), device='cuda')
+model = SlimModelRunner(weights=os.path.join(app.root_path, "model/model.pt"), device='cpu')
 image_cache = {}
 
 
@@ -37,7 +37,7 @@ def imgdraw_channel(channel):
     pred = {k: v for k, v in img_data.items() if k != 'img'}
 
     drawn = draw_predict(img, pred)
-    img_b64 = base64.b64encode(img_data)
+    img_b64 = base64.b64encode(drawn)
     img_b64 = img_b64.decode('utf-8')
 
     return render_template("result.html", img=img_b64)
