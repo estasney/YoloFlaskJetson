@@ -7,7 +7,7 @@ from io import BytesIO
 import os
 
 app = Flask(__name__)
-model = SlimModelRunner(weights=os.path.join(app.root_path, "model/best.pt"), device='cuda')
+model = SlimModelRunner(weights=os.path.join(app.root_path, "model/model.pt"), device='cuda')
 
 
 def draw_predict(img, pred):
