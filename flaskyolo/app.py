@@ -1,6 +1,8 @@
+from typing import Tuple
+
 from flask import Flask, request, jsonify, render_template
 from yolov5.models.slim import SlimModelRunner
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFont
 import numpy as np
 import base64
 from io import BytesIO
@@ -11,21 +13,75 @@ model = SlimModelRunner(weights=os.path.join(app.root_path, "model/model.pt"), d
 image_cache = {}
 
 
-def draw_predict(img, pred):
+def draw_predict(img, pred, to_bytes=True):
+    PAD = 4
+
     img = Image.fromarray(img.astype(np.uint8))
+    fnt = ImageFont.truetype("Pillow/Tests/fonts/FreeMono.ttf", 18)
     for detect in pred['detections']:
         box = detect['xyxy']
         cls = detect['cls']
         confidence = detect['confidence']
+        d = ImageDraw.Draw(img)
+        d.rectangle(box, width=PAD, outline='red')  # BBox
+        cls_text = f"{cls} : {confidence.split('.')[0]}"
+        cls_text_box_size = fnt.getbbox(cls_text)
 
-        print(cls, confidence)
-        ImageDraw.Draw(img).rectangle(box, width=4, outline='red')  # plot
+        cls_xy = (box[0] + PAD, box[1] + cls_text_box_size[1] - PAD)
+
+        # solid background for text
+        d.rectangle((box[0], box[1] + cls_text_box_size[1], box[0] + cls_text_box_size[2] + PAD,
+                     box[1] + cls_text_box_size[3] + PAD), fill='red')
+
+        d.text(cls_xy, cls_text, font=fnt)
+
+    if to_bytes:
+        with BytesIO() as output:
+            img.save(output, format="PNG")
+            contents = output.getvalue()
+
+        return contents
+    else:
+        return img
+
+
+@app.route('/current', methods=['GET'])
+def imgdraw_current():
+    if not image_cache:
+        return jsonify({"message": "no cache"}), 404
+    img_data = {k: v for k, v in image_cache.items()}  # copy
+
+    drawings = []
+    for k, data in img_data.items():
+        img = data['img']
+        pred = {k: v for k, v in data.items() if k != 'img'}
+        drawings.append(draw_predict(img, pred, to_bytes=False))
+
+    img_data.clear()
+    del img_data
+
+    width = drawings[0].size[0] * 2
+    height = drawings[0].size[1] * 2
+
+    stack_img = Image.new('RGB', (width, height))
+
+    stack_img.paste(drawings[0])
+    stack_img.paste(drawings[1], (width // 2, 0, width, height // 2))
+    stack_img.paste(drawings[2], (0, height // 2, width // 2, height))
+    stack_img.paste(drawings[3], (width // 2, height // 2, width, height))
+
+    del drawings
 
     with BytesIO() as output:
-        img.save(output, format="JPEG")
+        stack_img.save(output, format="PNG")
         contents = output.getvalue()
+    del output
 
-    return contents
+    img_b64 = base64.b64encode(contents)
+    del contents
+    img_b64 = img_b64.decode('utf-8')
+
+    return render_template("result.html", img=img_b64)
 
 
 @app.route('/current/<channel>', methods=['GET'])
@@ -52,8 +108,14 @@ def hello_world():
 def api_predict():
     img_tasks = []
 
-    for img_name, img_file in request.files.items():
-        img_arr = np.array(Image.open(img_file))
+    img_archive = request.data
+    if not img_archive:
+        return jsonify({'message': 'file not found'}), 404
+
+    # noinspection PyTypeChecker
+    img_archive = np.load(BytesIO(img_archive))
+
+    for img_name, img_arr in img_archive.items():
         img_tasks.append((img_name, img_arr))
 
     predictions = model.detect([img for img_name, img in img_tasks])
