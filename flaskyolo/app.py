@@ -7,8 +7,10 @@ import numpy as np
 import base64
 from io import BytesIO
 import os
+from datetime import timedelta
 
 app = Flask(__name__)
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = timedelta(seconds=0)
 model = SlimModelRunner(weights=os.path.join(app.root_path, "model/model.pt"), device='cuda')
 image_cache = {}
 
