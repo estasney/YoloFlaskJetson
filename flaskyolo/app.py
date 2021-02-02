@@ -1,6 +1,6 @@
 from typing import Tuple
 
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, send_file
 from yolov5.models.slim import SlimModelRunner
 from PIL import Image, ImageDraw, ImageFont
 import numpy as np
@@ -45,12 +45,11 @@ def draw_predict(img, pred, to_bytes=True):
         return img
 
 
-@app.route('/current', methods=['GET'])
-def imgdraw_current():
+@app.route('/img/current', methods=['GET'])
+def serve_image():
     if not image_cache:
         return jsonify({"message": "no cache"}), 404
     img_data = {k: v for k, v in image_cache.items()}  # copy
-
     drawings = []
     for k, data in img_data.items():
         img = data['img']
@@ -75,13 +74,15 @@ def imgdraw_current():
     with BytesIO() as output:
         stack_img.save(output, format="PNG")
         contents = output.getvalue()
-    del output
 
-    img_b64 = base64.b64encode(contents)
-    del contents
-    img_b64 = img_b64.decode('utf-8')
+    del stack_img, output
 
-    return render_template("result.html", img=img_b64)
+    return send_file(BytesIO(contents), 'current.png')
+
+
+@app.route('/current', methods=['GET'])
+def imgdraw_current():
+    return render_template("result.html")
 
 
 @app.route('/current/<channel>', methods=['GET'])

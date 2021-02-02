@@ -5,7 +5,6 @@
   <title>Title</title>
 </head>
 <body>
-<img src="data:image/png;base64, {{ img }}">
-
+<img src="{{ url_for('serve_image') }}">
 </body>
 </html>
