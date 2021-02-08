@@ -54,7 +54,7 @@ printf "" > /etc/nginx/conf.d/default.conf
 
 # Copy static folders
 cp -r /app/flaskyolo/static /www
-chmod 755 $(find /www -type d)
-chmod 644 $(find /www -type f)
+find /www -type d -exec chmod 755 {} +
+find /www -type f -exec chmod 664 {} +
 
 exec "$@"
