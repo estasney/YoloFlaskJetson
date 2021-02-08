@@ -44,7 +44,7 @@ def draw_predict(img, pred, to_bytes=True):
     PAD = 4
 
     img = Image.fromarray(img.astype(np.uint8))
-    fnt = ImageFont.truetype("VeraMono.ttf", 18)
+    fnt = ImageFont.truetype("DejaVuSans.ttf", 18)
     for detect in pred['detections']:
         box = detect['xyxy']
         cls = detect['cls']
