@@ -8,8 +8,33 @@ import base64
 from io import BytesIO
 import os
 from datetime import timedelta
-
+from logging.config import dictConfig
 app = Flask(__name__)
+
+dictConfig({
+    'version':    1,
+    'formatters': {
+        'default': {
+            'format': '[%(asctime)s] %(levelname)s in %(module)s: %(message)s',
+            }
+        },
+    'handlers':   {
+        'wsgi': {
+            'class':     'logging.StreamHandler',
+            'stream':    'ext://flask.logging.wsgi_errors_stream',
+            'formatter': 'default'
+            }
+        },
+    'root':       {
+        'level':    'INFO',
+        'handlers': ['wsgi']
+        }
+    })
+
+
+
+
+
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = timedelta(seconds=0)
 model = SlimModelRunner(weights=os.path.join(app.root_path, "model/model.pt"), device='cuda')
 image_cache = {}
